@@ -1,0 +1,14 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert');
+const elements=new Map();function el(id){if(!elements.has(id))elements.set(id,{value:'',innerHTML:'',textContent:'',style:{},classList:{toggle(){}},append(){},focus(){},addEventListener(){},setCustomValidity(){},reportValidity(){},querySelector(x){return el(id+x)}});return elements.get(id)}
+const store=new Map();const c=vm.createContext({console,document:{getElementById:el,createElement:()=>el('new')},window:{FIREBASE_CONFIG:null,addEventListener(){}},sessionStorage:{getItem:k=>store.get(k),setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)},setInterval:()=>1,clearInterval(){},confirm:()=>true,alert(){},Date});
+const html=fs.readFileSync('project/index.html','utf8');vm.runInContext([...html.matchAll(/<script>([\s\S]*?)<\/script>/g)][0][1],c);const run=s=>vm.runInContext(s,c);
+run("started=true;startAt=Date.now();$('name').value='Тест Ученик';$('classroom').value='10В';");
+assert.equal(run('problems.length'),13);assert.equal(run("letters.slice().sort().join('')==='ТРИГОНОМЕТРИЯ'.split('').sort().join('')"),true);
+for(let i=0;i<13;i++){run("$('answer').value=problems[idx].a.split(',').reverse().join(';');check();");assert.equal(run('idx'),i+1)}
+run("$('code').value='нет';$('escape').onclick();");assert.equal(run('finished'),false);run("$('code').value='тригонометрия';$('escape').onclick();");assert.equal(run('finished'),true);const frozen=run('elapsed()');assert.equal(run('elapsed()'),frozen);
+run("reset();started=true;startAt=Date.now();$('answer').value='1';check();$('answer').value='1';check();");assert.equal(run('retryMode'),true);assert.equal(run('errors'),2);assert.equal(run('penalty'),30);run("$('answer').value='0,180';check();");assert.equal(run('retryMode'),false);assert.equal(run('idx'),0);run("$('hintbtn').onclick();$('hintbtn').onclick();");assert.equal(run('hints'),1);assert.equal(run('penalty'),90);assert.equal(run("correct('0,,180','0,180')"),false);assert.equal(run("correct('0,180,360','0,180')"),false);
+run('startAt=Date.now()-1200001;tick();');assert.equal(run('expired'),true);run("$('answer').value=problems[0].a;check();");assert.equal(run('idx'),0);
+// Independently enumerate integer-degree roots of each equation.
+const equations=[(s,c)=>2*s*s-s-1,(s,c)=>2*c*c-3*c+1,(s,c)=>2*s*s+3*s+1,(s,c)=>2*c*c+c-1,(s,c)=>4*s*s-3,(s,c)=>4*c*c-1,(s,c)=>s*s-s,(s,c)=>c*c+c,(s,c)=>2*s*s-1,(s,c)=>2*c*c-1,(s,c)=>s*s-c*c,(s,c)=>2*s*c-s,(s,c)=>2*s*c+c];
+equations.forEach((f,i)=>{const roots=[];for(let a=0;a<360;a++)if(Math.abs(f(Math.sin(a*Math.PI/180),Math.cos(a*Math.PI/180)))<1e-9)roots.push(a);assert.equal(roots.join(','),run(`problems[${i}].a`))});
+console.log('PASS: 13 equations, answer sets, scrambled letters, 13-door victory, wrong code, retries, penalties, single-use hint, invalid input, timeout, frozen result. DOM simulated; no live Firebase/browser tests.');

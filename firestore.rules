@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+  function teacher() {
+   return request.auth != null && request.auth.token.firebase.sign_in_provider == 'password'
+    && exists(/databases/$(database)/documents/teachers/$(request.auth.uid));
+  }
+  match /teachers/{uid} {
+   allow get: if request.auth != null && request.auth.uid == uid;
+   allow list, write: if false;
+  }
+  match /sessions/{id} {
+   function valid() {
+    let d = request.resource.data;
+    return d.keys().hasAll(['uid','name','classroom','completed','current','status','errors','hints','retries','elapsed','updatedAt','startedAt'])
+     && d.keys().hasOnly(['uid','name','classroom','completed','current','status','errors','hints','retries','elapsed','updatedAt','startedAt'])
+     && d.uid == request.auth.uid && d.name is string && d.name.size() >= 3 && d.name.size() <= 90
+     && d.classroom in ['10В','10Г','10Д']
+     && d.completed is int && d.completed >= 0 && d.completed <= 13
+     && d.current is int && d.current == (d.status in ['finished','timeout','code'] ? 0 : d.completed + 1)
+     && d.status in ['playing','code','finished','timeout']
+     && (d.status != 'playing' || d.completed < 13)
+     && (!(d.status in ['finished','code']) || d.completed == 13)
+     && d.errors is int && d.errors >= 0 && d.errors <= 10000
+     && d.hints is int && d.hints >= 0 && d.hints <= 13
+     && d.retries is int && d.retries >= 0 && d.retries <= 10000
+     && d.elapsed is int && d.elapsed >= 0 && d.elapsed <= 1000000
+     && d.startedAt is timestamp && d.startedAt <= request.time
+     && d.updatedAt == request.time;
+   }
+   allow create: if request.auth != null && request.auth.token.firebase.sign_in_provider == 'anonymous' && valid();
+   allow update: if request.auth != null && resource.data.uid == request.auth.uid && valid()
+    && request.resource.data.uid == resource.data.uid
+    && request.resource.data.name == resource.data.name
+    && request.resource.data.classroom == resource.data.classroom
+    && request.resource.data.startedAt == resource.data.startedAt
+    && request.resource.data.completed >= resource.data.completed
+    && request.resource.data.errors >= resource.data.errors
+    && request.resource.data.hints >= resource.data.hints
+    && request.resource.data.elapsed >= resource.data.elapsed
+    && (!(resource.data.status in ['finished','timeout']) || request.resource.data.status == resource.data.status);
+   allow get: if teacher() || (request.auth != null && resource.data.uid == request.auth.uid);
+   allow list, delete: if teacher();
+  }
+ }
+}
